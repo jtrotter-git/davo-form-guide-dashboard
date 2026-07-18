@@ -70,7 +70,7 @@
   .meeting-block > summary:hover { color: var(--accent); }
   .race-block { margin-bottom: 10px; overflow-x: auto; }
   .empty { color: var(--muted); font-style: italic; padding: 8px 0; }
-  .match-unmatched { color: #c0392b; font-size: 0.78rem; }
+  .gear-changes { color: var(--muted); font-size: 0.78rem; font-style: italic; margin: -6px 0 12px; }
 </style>
 </head>
 <body>
@@ -93,8 +93,12 @@ const PAGE_SIZE = 1000;
 const MAIN_SELECT = [
   "meeting_date","bf_meeting_name","race_number","market_name","event_name",
   "davo_rank","win_probability","horse_name","jockey","trainer","barrier",
-  "weight","weight_allocated","tab_no","price_sp","pf_match_status"
+  "weight","weight_allocated","tab_no","price_sp","gear_changes"
 ].join(",");
+
+function stripLeadingRaceLabel(name) {
+  return name.replace(/^R\d+\s*/i, "");
+}
 
 async function fetchAllPages(url) {
   let allRows = [];
@@ -172,7 +176,8 @@ function renderGrouped(container, rows, meetingKeyField, meetingLabelFn) {
         const ra = a.davo_rank ?? 9999, rb = b.davo_rank ?? 9999;
         return ra - rb;
       });
-      const raceName = raceRows[0].market_name || raceRows[0].event_name || "";
+      const rawRaceName = raceRows[0].market_name || raceRows[0].event_name || "";
+      const raceName = stripLeadingRaceLabel(rawRaceName);
 
       const raceBlock = document.createElement("div");
       raceBlock.className = "race-block";
@@ -184,8 +189,8 @@ function renderGrouped(container, rows, meetingKeyField, meetingLabelFn) {
       table.innerHTML = `
         <thead>
           <tr>
-            <th>Rank</th><th>Tab</th><th>Horse</th><th>Jockey</th><th>Trainer</th>
-            <th>Barrier</th><th>Weight</th><th>SP</th><th>Win %</th><th>PF Match</th>
+            <th>Rank</th><th>Tab</th><th>Horse</th><th>Barrier</th><th>Weight</th>
+            <th>Jockey</th><th>Trainer</th><th>$W</th><th>Win %</th>
           </tr>
         </thead>`;
       const tbody = document.createElement("tbody");
@@ -194,24 +199,31 @@ function renderGrouped(container, rows, meetingKeyField, meetingLabelFn) {
         if (r.davo_rank !== null && r.davo_rank !== undefined && r.davo_rank <= 4) {
           tr.className = "top-rank";
         }
-        const matchCell = r.pf_match_status === "UNMATCHED_PF"
-          ? '<span class="match-unmatched">UNMATCHED</span>'
-          : (r.pf_match_status || "");
         tr.innerHTML = `
           <td>${r.davo_rank ?? ""}</td>
           <td>${r.tab_no ?? ""}</td>
           <td>${r.horse_name ?? ""}</td>
-          <td>${r.jockey ?? ""}</td>
-          <td>${r.trainer ?? ""}</td>
           <td>${r.barrier ?? ""}</td>
           <td>${fmtWeight(r)}</td>
+          <td>${r.jockey ?? ""}</td>
+          <td>${r.trainer ?? ""}</td>
           <td>${r.price_sp ?? ""}</td>
-          <td>${fmtProb(r.win_probability)}</td>
-          <td>${matchCell}</td>`;
+          <td>${fmtProb(r.win_probability)}</td>`;
         tbody.appendChild(tr);
       }
       table.appendChild(tbody);
       raceBlock.appendChild(table);
+
+      const gearNotes = raceRows
+        .filter(r => r.gear_changes && String(r.gear_changes).trim())
+        .map(r => `${r.tab_no ?? ""}. ${r.horse_name ?? ""} — ${String(r.gear_changes).trim()}`);
+      if (gearNotes.length) {
+        const gearEl = document.createElement("div");
+        gearEl.className = "gear-changes";
+        gearEl.textContent = "Gear changes: " + gearNotes.join("; ");
+        raceBlock.appendChild(gearEl);
+      }
+
       meetingBlock.appendChild(raceBlock);
     }
     container.appendChild(meetingBlock);
