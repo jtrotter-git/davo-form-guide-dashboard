@@ -189,7 +189,7 @@ function renderGrouped(container, rows, meetingKeyField, meetingLabelFn) {
       table.innerHTML = `
         <thead>
           <tr>
-            <th>Rank</th><th>Tab</th><th>Horse</th><th>Barrier</th><th>Weight</th>
+            <th>Rank</th><th>Horse</th><th>Barrier</th><th>Weight</th>
             <th>Jockey</th><th>Trainer</th><th>$W</th><th>Win %</th>
           </tr>
         </thead>`;
@@ -201,7 +201,6 @@ function renderGrouped(container, rows, meetingKeyField, meetingLabelFn) {
         }
         tr.innerHTML = `
           <td>${r.davo_rank ?? ""}</td>
-          <td>${r.tab_no ?? ""}</td>
           <td>${r.horse_name ?? ""}</td>
           <td>${r.barrier ?? ""}</td>
           <td>${fmtWeight(r)}</td>
