@@ -60,6 +60,14 @@
   tr.top-rank { background: var(--rank-top); }
   tr.top-rank td:first-child { border-left: 3px solid var(--rank-top-border); }
   .meeting-block { margin-bottom: 22px; }
+  .meeting-block > summary {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin: 24px 0 8px;
+    cursor: pointer;
+    list-style: revert;
+  }
+  .meeting-block > summary:hover { color: var(--accent); }
   .race-block { margin-bottom: 10px; overflow-x: auto; }
   .empty { color: var(--muted); font-style: italic; padding: 8px 0; }
   .match-unmatched { color: #c0392b; font-size: 0.78rem; }
@@ -125,15 +133,17 @@ function renderGrouped(container, rows, meetingKeyField, meetingLabelFn) {
 
   for (const meetingKey of sortedMeetingKeys) {
     const meetingRows = meetings.get(meetingKey);
-    const meetingBlock = document.createElement("div");
+    const meetingBlock = document.createElement("details");
     meetingBlock.className = "meeting-block";
-
-    const h2 = document.createElement("h2");
-    h2.textContent = meetingLabelFn(meetingKey, meetingRows);
-    meetingBlock.appendChild(h2);
 
     const races = groupBy(meetingRows, r => r.race_number ?? "?");
     const sortedRaceNumbers = [...races.keys()].sort((a, b) => Number(a) - Number(b));
+
+    const summary = document.createElement("summary");
+    const raceCount = sortedRaceNumbers.length;
+    summary.textContent = meetingLabelFn(meetingKey, meetingRows)
+      + ` (${raceCount} race${raceCount === 1 ? "" : "s"})`;
+    meetingBlock.appendChild(summary);
 
     for (const raceNumber of sortedRaceNumbers) {
       const raceRows = races.get(raceNumber).slice().sort((a, b) => {
