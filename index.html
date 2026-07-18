@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Davo Form Guide</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f5f6f8;
+    --panel: #ffffff;
+    --text: #1a1d23;
+    --muted: #5b6270;
+    --border: #dde1e7;
+    --accent: #1f6feb;
+    --rank-top: #fff4d6;
+    --rank-top-border: #e8b923;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a;
+      --panel: #1d2025;
+      --text: #e8eaed;
+      --muted: #9aa2af;
+      --border: #30343b;
+      --accent: #5b9bff;
+      --rank-top: #3a3320;
+      --rank-top-border: #8a6d1a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 20px;
+  }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  h2 { font-size: 1.15rem; margin: 24px 0 8px; }
+  h3 { font-size: 1rem; margin: 16px 0 6px; color: var(--muted); }
+  .subtitle { color: var(--muted); font-size: 0.85rem; margin-bottom: 20px; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 20px;
+  }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  input[type="date"], input[type="text"] {
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 0.9rem;
+  }
+  button {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 7px 14px;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; cursor: default; }
+  .status { color: var(--muted); font-size: 0.85rem; margin-top: 8px; }
+  .meeting-date-banner {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--accent);
+    margin: 10px 0 2px;
+  }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 0.86rem; }
+  th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.02em; }
+  tr.top-rank { background: var(--rank-top); }
+  tr.top-rank td:first-child { border-left: 3px solid var(--rank-top-border); }
+  .meeting-block { margin-bottom: 22px; }
+  .race-block { margin-bottom: 10px; overflow-x: auto; }
+  .empty { color: var(--muted); font-style: italic; padding: 8px 0; }
+  .match-unmatched { color: #c0392b; font-size: 0.78rem; }
+</style>
+</head>
+<body>
+
+<h1>Davo Form Guide</h1>
+<div class="subtitle">Personal dashboard — reads public.davo_option_1_form_guide_v1 / davo_option_1_form_guide_preview_v1 via PostgREST (anon key, read-only).</div>
+
+<div class="panel">
+  <h2 style="margin-top:0;">Form Guide</h2>
+  <div class="controls">
+    <label for="meetingDate">Meeting date</label>
+    <input type="date" id="meetingDate">
+    <button id="refreshBtn">Refresh</button>
+  </div>
+  <div class="status" id="mainStatus"></div>
+  <div id="mainResults"></div>
+</div>
+
+<div class="panel">
+  <h2 style="margin-top:0;">Preview Run</h2>
+  <div class="controls">
+    <label for="runGroupId">run_group_id</label>
+    <input type="text" id="runGroupId" placeholder="e.g. davo_1a_bf_exchange_current_20260717_062834_0d242f46" size="48">
+    <button id="previewBtn">Load Preview</button>
+  </div>
+  <div class="status" id="previewStatus"></div>
+  <div id="previewResults"></div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://wflrrqvqesosdfhsyqch.supabase.co";
+// Public anon key — read-only SELECT on davo_option_1_form_guide_v1 and EXECUTE on
+// davo_option_1_form_guide_preview_v1 only. No service-role key or other secret is used here.
+const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndmbHJycXZxZXNvc2RmaHN5cWNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0NTcxNzUsImV4cCI6MjA5NzAzMzE3NX0.64ds3plmFs07x6d62mzGfeCPPARyEF-JqQiLoORrIqM";
+
+const MAIN_SELECT = [
+  "meeting_date","bf_meeting_name","race_number","market_name","event_name",
+  "davo_rank","win_probability","horse_name","jockey","trainer","barrier",
+  "weight","weight_allocated","tab_no","price_sp","pf_match_status"
+].join(",");
+
+const PREVIEW_SELECT = [
+  "meeting_date","event_name","race_number","market_name",
+  "davo_rank","win_probability","horse_name","jockey","trainer","barrier",
+  "weight","weight_allocated","tab_no","price_sp","pf_match_status"
+].join(",");
+
+function fmtWeight(row) {
+  const w = row.weight ?? row.weight_allocated;
+  return (w === null || w === undefined || w === "") ? "" : w;
+}
+
+function fmtProb(p) {
+  if (p === null || p === undefined) return "";
+  return (p * 100).toFixed(1) + "%";
+}
+
+function groupBy(rows, keyFn) {
+  const map = new Map();
+  for (const r of rows) {
+    const k = keyFn(r);
+    if (!map.has(k)) map.set(k, []);
+    map.get(k).push(r);
+  }
+  return map;
+}
+
+function renderGrouped(container, rows, meetingKeyField, meetingLabelFn) {
+  container.innerHTML = "";
+  if (!rows.length) {
+    container.innerHTML = '<div class="empty">No rows returned.</div>';
+    return;
+  }
+
+  const meetingDates = [...new Set(rows.map(r => r.meeting_date))];
+  const banner = document.createElement("div");
+  banner.className = "meeting-date-banner";
+  banner.textContent = "Meeting date: " + meetingDates.join(", ");
+  container.appendChild(banner);
+
+  const meetings = groupBy(rows, r => r[meetingKeyField] || "Unknown meeting");
+  const sortedMeetingKeys = [...meetings.keys()].sort();
+
+  for (const meetingKey of sortedMeetingKeys) {
+    const meetingRows = meetings.get(meetingKey);
+    const meetingBlock = document.createElement("div");
+    meetingBlock.className = "meeting-block";
+
+    const h2 = document.createElement("h2");
+    h2.textContent = meetingLabelFn(meetingKey, meetingRows);
+    meetingBlock.appendChild(h2);
+
+    const races = groupBy(meetingRows, r => r.race_number ?? "?");
+    const sortedRaceNumbers = [...races.keys()].sort((a, b) => Number(a) - Number(b));
+
+    for (const raceNumber of sortedRaceNumbers) {
+      const raceRows = races.get(raceNumber).slice().sort((a, b) => {
+        const ra = a.davo_rank ?? 9999, rb = b.davo_rank ?? 9999;
+        return ra - rb;
+      });
+      const raceName = raceRows[0].market_name || raceRows[0].event_name || "";
+
+      const raceBlock = document.createElement("div");
+      raceBlock.className = "race-block";
+      const h3 = document.createElement("h3");
+      h3.textContent = "Race " + raceNumber + (raceName ? " — " + raceName : "");
+      raceBlock.appendChild(h3);
+
+      const table = document.createElement("table");
+      table.innerHTML = `
+        <thead>
+          <tr>
+            <th>Rank</th><th>Tab</th><th>Horse</th><th>Jockey</th><th>Trainer</th>
+            <th>Barrier</th><th>Weight</th><th>SP</th><th>Win %</th><th>PF Match</th>
+          </tr>
+        </thead>`;
+      const tbody = document.createElement("tbody");
+      for (const r of raceRows) {
+        const tr = document.createElement("tr");
+        if (r.davo_rank !== null && r.davo_rank !== undefined && r.davo_rank <= 4) {
+          tr.className = "top-rank";
+        }
+        const matchCell = r.pf_match_status === "UNMATCHED_PF"
+          ? '<span class="match-unmatched">UNMATCHED</span>'
+          : (r.pf_match_status || "");
+        tr.innerHTML = `
+          <td>${r.davo_rank ?? ""}</td>
+          <td>${r.tab_no ?? ""}</td>
+          <td>${r.horse_name ?? ""}</td>
+          <td>${r.jockey ?? ""}</td>
+          <td>${r.trainer ?? ""}</td>
+          <td>${r.barrier ?? ""}</td>
+          <td>${fmtWeight(r)}</td>
+          <td>${r.price_sp ?? ""}</td>
+          <td>${fmtProb(r.win_probability)}</td>
+          <td>${matchCell}</td>`;
+        tbody.appendChild(tr);
+      }
+      table.appendChild(tbody);
+      raceBlock.appendChild(table);
+      meetingBlock.appendChild(raceBlock);
+    }
+    container.appendChild(meetingBlock);
+  }
+}
+
+async function fetchMain(date) {
+  const statusEl = document.getElementById("mainStatus");
+  const resultsEl = document.getElementById("mainResults");
+  statusEl.textContent = "Loading...";
+  const url = `${SUPABASE_URL}/rest/v1/davo_option_1_form_guide_v1`
+    + `?select=${MAIN_SELECT}&meeting_date=eq.${date}`
+    + `&order=bf_meeting_name.asc,race_number.asc,davo_rank.asc`;
+  try {
+    const resp = await fetch(url, {
+      headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` }
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
+    const rows = await resp.json();
+    statusEl.textContent = `Loaded ${rows.length} row(s) for ${date}.`;
+    renderGrouped(resultsEl, rows, "bf_meeting_name", (key) => key);
+  } catch (err) {
+    statusEl.textContent = "Error: " + err.message;
+    resultsEl.innerHTML = "";
+  }
+}
+
+async function fetchPreview(runGroupId) {
+  const statusEl = document.getElementById("previewStatus");
+  const resultsEl = document.getElementById("previewResults");
+  if (!runGroupId) {
+    statusEl.textContent = "Enter a run_group_id first.";
+    return;
+  }
+  statusEl.textContent = "Loading...";
+  const url = `${SUPABASE_URL}/rest/v1/rpc/davo_option_1_form_guide_preview_v1`
+    + `?select=${PREVIEW_SELECT}&order=event_name.asc,race_number.asc,davo_rank.asc`;
+  try {
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: {
+        apikey: ANON_KEY,
+        Authorization: `Bearer ${ANON_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ p_run_group_id: runGroupId })
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
+    const rows = await resp.json();
+    statusEl.textContent = `Loaded ${rows.length} row(s) for run_group_id "${runGroupId}".`;
+    renderGrouped(resultsEl, rows, "event_name", (key) => key);
+  } catch (err) {
+    statusEl.textContent = "Error: " + err.message;
+    resultsEl.innerHTML = "";
+  }
+}
+
+document.getElementById("meetingDate").valueAsDate = new Date();
+document.getElementById("refreshBtn").addEventListener("click", () => {
+  fetchMain(document.getElementById("meetingDate").value);
+});
+document.getElementById("previewBtn").addEventListener("click", () => {
+  fetchPreview(document.getElementById("runGroupId").value.trim());
+});
+
+fetchMain(document.getElementById("meetingDate").value);
+</script>
+
+</body>
+</html>
