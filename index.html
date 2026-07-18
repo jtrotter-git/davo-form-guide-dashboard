@@ -47,25 +47,6 @@
     padding: 16px 18px;
     margin-bottom: 20px;
   }
-  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-  input[type="date"], input[type="text"] {
-    background: var(--bg);
-    color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 6px 10px;
-    font-size: 0.9rem;
-  }
-  button {
-    background: var(--accent);
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    padding: 7px 14px;
-    font-size: 0.9rem;
-    cursor: pointer;
-  }
-  button:disabled { opacity: 0.5; cursor: default; }
   .status { color: var(--muted); font-size: 0.85rem; margin-top: 8px; }
   .meeting-date-banner {
     font-size: 0.9rem;
@@ -87,44 +68,21 @@
 <body>
 
 <h1>Davo Form Guide</h1>
-<div class="subtitle">Personal dashboard — reads public.davo_option_1_form_guide_v1 / davo_option_1_form_guide_preview_v1 via PostgREST (anon key, read-only).</div>
+<div class="subtitle">Today's form guide — reads public.davo_option_1_form_guide_v1 via PostgREST (anon key, read-only).</div>
 
 <div class="panel">
-  <h2 style="margin-top:0;">Form Guide</h2>
-  <div class="controls">
-    <label for="meetingDate">Meeting date</label>
-    <input type="date" id="meetingDate">
-    <button id="refreshBtn">Refresh</button>
-  </div>
   <div class="status" id="mainStatus"></div>
   <div id="mainResults"></div>
 </div>
 
-<div class="panel">
-  <h2 style="margin-top:0;">Preview Run</h2>
-  <div class="controls">
-    <label for="runGroupId">run_group_id</label>
-    <input type="text" id="runGroupId" placeholder="e.g. davo_1a_bf_exchange_current_20260717_062834_0d242f46" size="48">
-    <button id="previewBtn">Load Preview</button>
-  </div>
-  <div class="status" id="previewStatus"></div>
-  <div id="previewResults"></div>
-</div>
-
 <script>
 const SUPABASE_URL = "https://wflrrqvqesosdfhsyqch.supabase.co";
-// Public anon key — read-only SELECT on davo_option_1_form_guide_v1 and EXECUTE on
-// davo_option_1_form_guide_preview_v1 only. No service-role key or other secret is used here.
+// Public anon key — read-only SELECT on davo_option_1_form_guide_v1 only.
+// No service-role key or other secret is used here.
 const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndmbHJycXZxZXNvc2RmaHN5cWNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0NTcxNzUsImV4cCI6MjA5NzAzMzE3NX0.64ds3plmFs07x6d62mzGfeCPPARyEF-JqQiLoORrIqM";
 
 const MAIN_SELECT = [
   "meeting_date","bf_meeting_name","race_number","market_name","event_name",
-  "davo_rank","win_probability","horse_name","jockey","trainer","barrier",
-  "weight","weight_allocated","tab_no","price_sp","pf_match_status"
-].join(",");
-
-const PREVIEW_SELECT = [
-  "meeting_date","event_name","race_number","market_name",
   "davo_rank","win_probability","horse_name","jockey","trainer","barrier",
   "weight","weight_allocated","tab_no","price_sp","pf_match_status"
 ].join(",");
@@ -249,45 +207,15 @@ async function fetchMain(date) {
   }
 }
 
-async function fetchPreview(runGroupId) {
-  const statusEl = document.getElementById("previewStatus");
-  const resultsEl = document.getElementById("previewResults");
-  if (!runGroupId) {
-    statusEl.textContent = "Enter a run_group_id first.";
-    return;
-  }
-  statusEl.textContent = "Loading...";
-  const url = `${SUPABASE_URL}/rest/v1/rpc/davo_option_1_form_guide_preview_v1`
-    + `?select=${PREVIEW_SELECT}&order=event_name.asc,race_number.asc,davo_rank.asc`;
-  try {
-    const resp = await fetch(url, {
-      method: "POST",
-      headers: {
-        apikey: ANON_KEY,
-        Authorization: `Bearer ${ANON_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ p_run_group_id: runGroupId })
-    });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
-    const rows = await resp.json();
-    statusEl.textContent = `Loaded ${rows.length} row(s) for run_group_id "${runGroupId}".`;
-    renderGrouped(resultsEl, rows, "event_name", (key) => key);
-  } catch (err) {
-    statusEl.textContent = "Error: " + err.message;
-    resultsEl.innerHTML = "";
-  }
+function todayDateString() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
-document.getElementById("meetingDate").valueAsDate = new Date();
-document.getElementById("refreshBtn").addEventListener("click", () => {
-  fetchMain(document.getElementById("meetingDate").value);
-});
-document.getElementById("previewBtn").addEventListener("click", () => {
-  fetchPreview(document.getElementById("runGroupId").value.trim());
-});
-
-fetchMain(document.getElementById("meetingDate").value);
+fetchMain(todayDateString());
 </script>
 
 </body>
