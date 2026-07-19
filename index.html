@@ -71,12 +71,15 @@
   .race-block { margin-bottom: 10px; overflow-x: auto; }
   .empty { color: var(--muted); font-style: italic; padding: 8px 0; }
   .gear-changes { color: var(--muted); font-size: 0.78rem; font-style: italic; margin: -6px 0 12px; }
+  .alert-emoji { font-size: 1.8rem; margin-bottom: 20px; }
 </style>
 </head>
 <body>
 
 <h1>Davo Form Guide</h1>
 <div class="subtitle">Today's form guide — reads public.davo_option_1_form_guide_v1 via PostgREST (anon key, read-only).</div>
+
+<div id="alertBanner"></div>
 
 <div class="panel">
   <div class="status" id="mainStatus"></div>
@@ -254,7 +257,27 @@ function todayDateString() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+async function fetchAlerts() {
+  const el = document.getElementById("alertBanner");
+  try {
+    const resp = await fetch(
+      `${SUPABASE_URL}/rest/v1/davo_audit_open_errors_public_v1?select=error_code`,
+      { headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` } }
+    );
+    if (!resp.ok) return; // Don't let an alert-fetch failure break the main form guide.
+    const rows = await resp.json();
+    el.innerHTML = "";
+    const span = document.createElement("div");
+    span.className = "alert-emoji";
+    span.textContent = rows.length ? "👎" : "👍";
+    el.appendChild(span);
+  } catch (err) {
+    // Silent -- an alert-banner failure must never break the main dashboard.
+  }
+}
+
 fetchMain(todayDateString());
+fetchAlerts();
 </script>
 
 </body>
