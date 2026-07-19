@@ -215,7 +215,7 @@ function renderGrouped(container, rows, meetingKeyField, meetingLabelFn) {
 
       const gearNotes = raceRows
         .filter(r => r.gear_changes && String(r.gear_changes).trim())
-        .map(r => `${r.tab_no ?? ""}. ${r.horse_name ?? ""} — ${String(r.gear_changes).trim()}`);
+        .map(r => `${r.horse_name ?? ""} — ${String(r.gear_changes).trim()}`);
       if (gearNotes.length) {
         const gearEl = document.createElement("div");
         gearEl.className = "gear-changes";
@@ -232,13 +232,11 @@ function renderGrouped(container, rows, meetingKeyField, meetingLabelFn) {
 async function fetchMain(date) {
   const statusEl = document.getElementById("mainStatus");
   const resultsEl = document.getElementById("mainResults");
-  statusEl.textContent = "Loading...";
   const url = `${SUPABASE_URL}/rest/v1/davo_option_1_form_guide_v1`
     + `?select=${MAIN_SELECT}&meeting_date=eq.${date}`
     + `&order=bf_meeting_name.asc,race_number.asc,davo_rank.asc`;
   try {
     const rows = await fetchAllPages(url);
-    statusEl.textContent = `Loaded ${rows.length} row(s) for ${date}.`;
     renderGrouped(resultsEl, rows, "bf_meeting_name", (key) => key);
   } catch (err) {
     statusEl.textContent = "Error: " + err.message;
