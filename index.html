@@ -71,14 +71,12 @@
   .race-block { margin-bottom: 10px; overflow-x: auto; }
   .empty { color: var(--muted); font-style: italic; padding: 8px 0; }
   .gear-changes { color: var(--muted); font-size: 0.78rem; font-style: italic; margin: -6px 0 12px; }
-  .alert-emoji { font-size: 1.8rem; margin-bottom: 20px; }
+  .alert-emoji { font-size: 0.85em; }
 </style>
 </head>
 <body>
 
-<h1>Davo Form Guide</h1>
-
-<div id="alertBanner"></div>
+<h1>Davo's Form Guide <span id="alertBanner"></span></h1>
 
 <div class="panel">
   <div class="status" id="mainStatus"></div>
@@ -260,7 +258,7 @@ function todayDateString() {
 async function renderAutomationHealthEmoji(date) {
   const el = document.getElementById("alertBanner");
   el.innerHTML = "";
-  const span = document.createElement("div");
+  const span = document.createElement("span");
   span.className = "alert-emoji";
   // "Good" means the automated pipeline actually ran correctly for this
   // specific date -- Option 1 promoted, and PF discovery ran and fully
