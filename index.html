@@ -49,9 +49,6 @@
   }
   .status { color: var(--muted); font-size: 0.85rem; margin-top: 8px; }
   .meeting-date-banner {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--accent);
     margin: 10px 0 2px;
   }
   table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 0.86rem; }
@@ -95,6 +92,18 @@ const MAIN_SELECT = [
   "davo_rank","win_probability","horse_name","jockey","trainer","barrier",
   "weight","weight_allocated","tab_no","price_sp","gear_changes"
 ].join(",");
+
+function formatNiceDate(dateStr) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  const dayName = date.toLocaleDateString("en-AU", { weekday: "long" });
+  const monthName = date.toLocaleDateString("en-AU", { month: "long" });
+  const suffix = (d % 10 === 1 && d !== 11) ? "st"
+    : (d % 10 === 2 && d !== 12) ? "nd"
+    : (d % 10 === 3 && d !== 13) ? "rd"
+    : "th";
+  return `${dayName} ${d}${suffix} of ${monthName}, ${y}`;
+}
 
 function stripLeadingRaceLabel(name) {
   return name.replace(/^R\d+\s*/i, "");
@@ -151,7 +160,7 @@ function renderGrouped(container, rows, meetingKeyField, meetingLabelFn) {
   const meetingDates = [...new Set(rows.map(r => r.meeting_date))];
   const banner = document.createElement("div");
   banner.className = "meeting-date-banner";
-  banner.textContent = "Meeting date: " + meetingDates.join(", ");
+  banner.textContent = meetingDates.map(formatNiceDate).join(", ");
   container.appendChild(banner);
 
   const meetings = groupBy(rows, r => r[meetingKeyField] || "Unknown meeting");
