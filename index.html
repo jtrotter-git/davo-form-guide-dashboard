@@ -247,6 +247,7 @@ async function fetchMain(date) {
     statusEl.textContent = "Error: " + err.message;
     resultsEl.innerHTML = "";
   }
+  renderAutomationHealthEmoji(date);
 }
 
 function todayDateString() {
@@ -257,27 +258,33 @@ function todayDateString() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-async function fetchAlerts() {
+async function renderAutomationHealthEmoji(date) {
   const el = document.getElementById("alertBanner");
+  el.innerHTML = "";
+  const span = document.createElement("div");
+  span.className = "alert-emoji";
+  // "Good" means the automated pipeline actually ran correctly for this
+  // specific date -- Option 1 promoted, and PF discovery ran and fully
+  // drained for this date (not just a high match rate against stale PF
+  // rows from a previous day, which the locked matching rule wouldn't
+  // otherwise distinguish).
   try {
     const resp = await fetch(
-      `${SUPABASE_URL}/rest/v1/davo_audit_open_errors_public_v1?select=error_code`,
+      `${SUPABASE_URL}/rest/v1/davo_option_1_automation_health_v1?meeting_date=eq.${date}`,
       { headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` } }
     );
-    if (!resp.ok) return; // Don't let an alert-fetch failure break the main form guide.
+    if (!resp.ok) { span.textContent = "👎"; el.appendChild(span); return; }
     const rows = await resp.json();
-    el.innerHTML = "";
-    const span = document.createElement("div");
-    span.className = "alert-emoji";
-    span.textContent = rows.length ? "👎" : "👍";
-    el.appendChild(span);
+    const h = rows[0];
+    const isGood = !!(h && h.promotion_ok && h.pf_discovery_ran && h.pf_fully_drained);
+    span.textContent = isGood ? "👍" : "👎";
   } catch (err) {
-    // Silent -- an alert-banner failure must never break the main dashboard.
+    span.textContent = "👎";
   }
+  el.appendChild(span);
 }
 
 fetchMain(todayDateString());
-fetchAlerts();
 </script>
 
 </body>
